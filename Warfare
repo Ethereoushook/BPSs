@@ -1,0 +1,84 @@
+--Fuck ban/kick by WG
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local RS = game:GetService("ReplicatedStorage")
+local LP = Players.LocalPlayer
+
+local S = getgenv().FUST_AC
+if S and S.conns then
+    for _, c in ipairs(S.conns) do pcall(function() c:Disconnect() end) end
+end
+S = S or {}
+S.conns = {}
+S.nonce = nil
+S.spiderOn = false
+S.gen = (S.gen or 0) + 1
+local gen = S.gen
+getgenv().FUST_AC = S
+local Remotes = RS:WaitForChild("Framework"):WaitForChild("Remotes")
+local Pulse = Remotes:FindFirstChild("IntegrityPulse") or Remotes:WaitForChild("IntegrityPulse", 20)
+local killed = {}
+local function killReporter(name)
+    local ps = LP:FindFirstChild("PlayerScripts")
+    local s = ps and ps:FindFirstChild(name)
+    if not s then return end
+    pcall(function() s:Destroy() end)
+    if not ps:FindFirstChild(name) then killed[#killed + 1] = name end
+end
+killReporter("IntegrityBeacon")
+killReporter("OverlayAudit")
+
+task.spawn(function()
+    for _ = 1, 8 do
+        killReporter("IntegrityBeacon")
+        killReporter("OverlayAudit")
+        task.wait(1)
+    end
+end)
+pcall(function()
+    workspace:SetAttribute("DroneEspWatch1007Off", true)
+    workspace:SetAttribute("DroneEspDroneWatch1007On", false)
+    workspace:SetAttribute("DroneEspCharWatch1007On", false)
+end)
+local function syncGrace()
+    local ch = LP.Character
+    local h = ch and ch:FindFirstChildOfClass("Humanoid")
+    if not (ch and h) then return end
+    for _, key in ipairs({ "WalkSpeed", "JumpPower", "JumpHeight" }) do
+        local v = h[key]
+        if type(v) == "number" then
+            pcall(function()
+                ch:SetAttribute("_Original" .. key, v)
+                ch:SetAttribute("_ClientOriginal" .. key, v)
+            end)
+        end
+    end
+end
+
+task.spawn(function()
+    while S.gen == gen do
+        pcall(syncGrace)
+        task.wait(1)
+    end
+end)
+if Pulse then
+    S.conns[#S.conns + 1] = Pulse.OnClientEvent:Connect(function(kind, v)
+        if kind == "n" and type(v) == "number" then S.nonce = v end
+    end)
+
+    task.spawn(function()
+        while S.gen == gen do
+            local h = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+            local nonce = S.nonce
+            if nonce then
+                pcall(function()
+                    Pulse:FireServer("p", nonce, workspace.Gravity, h and h.HipHeight or nil)
+                end)
+            else
+                pcall(function() Pulse:FireServer("h") end)
+            end
+            task.wait(10 + math.random() * 2)
+        end
+    end)
+end
